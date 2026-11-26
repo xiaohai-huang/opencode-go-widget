@@ -61,19 +61,15 @@ def run_once(args):
     return 0
 
 
-def run_uninstall(purge):
+def run_uninstall():
     if os.geteuid() == 0:
         print("Run --uninstall as your desktop user, not with sudo.", file=sys.stderr)
         return 2
     from ocg import uninstall
 
     uninstall.stop_app()
-    uninstall.cleanup_user_state(purge=purge)
-    if purge:
-        print("Removed settings and API key.")
-    else:
-        print("Kept settings and API key in ~/.config/opencode-go-widget.")
-    print("Disabled the panel extension and removed the autostart entry and cache.")
+    uninstall.cleanup_user_state()
+    print("Removed the panel extension, autostart entry, cache, settings and API key.")
     print("\nRemove the package with:\n  sudo apt remove opencode-go-widget")
     return 0
 
@@ -82,9 +78,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="opencode-go-widget", description="OpenCode Go Widget")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--uninstall", action="store_true",
-                        help="remove per-user state before removing the package")
-    parser.add_argument("--purge", action="store_true",
-                        help="with --uninstall, also delete settings and the API key")
+                        help="remove all per-user state before removing the package")
     parser.add_argument("--once", action="store_true", help="print usage and exit (no GUI)")
     parser.add_argument("--demo", action="store_true", help="run with sample numbers")
     parser.add_argument("--no-card", action="store_true", help="start with the desktop card hidden")
@@ -92,10 +86,8 @@ def main(argv=None):
     parser.add_argument("--screenshot", metavar="PATH", help="capture the card to PATH and exit")
     args = parser.parse_args(argv)
 
-    if args.purge and not args.uninstall:
-        parser.error("--purge requires --uninstall")
     if args.uninstall:
-        return run_uninstall(args.purge)
+        return run_uninstall()
     if args.once:
         return run_once(args)
 

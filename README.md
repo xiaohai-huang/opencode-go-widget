@@ -34,10 +34,10 @@ Ayatana AppIndicator).
 
 ## Install
 
-Download `opencode-go-widget_1.0.5_all.deb` from the releases page and run:
+Download `opencode-go-widget_1.0.6_all.deb` from the releases page and run:
 
 ```sh
-sudo apt install ./opencode-go-widget_1.0.5_all.deb
+sudo apt install ./opencode-go-widget_1.0.6_all.deb
 ```
 
 Then **log out and back in** once. GNOME Shell only scans extension
@@ -51,12 +51,11 @@ Settings.
 
 ## Uninstall
 
-Clean up per-user state first. This quits the widget, disables the panel
-extension, and removes the autostart entry and cache:
+Remove all per-user state first. This quits the widget, disables the panel
+extension, and deletes the autostart entry, cache, settings and API key:
 
 ```sh
-opencode-go-widget --uninstall          # keep API key and settings
-opencode-go-widget --uninstall --purge  # also delete the key and settings
+opencode-go-widget --uninstall
 ```
 
 Then remove the package:
@@ -73,7 +72,7 @@ The same cleanup is available from Settings → **Uninstall…**.
 | --- | --- |
 | `app/` | GTK app: card, polling, D-Bus service, settings |
 | `extension/` | GNOME Shell extension: panel ring + weekly label + dropdown |
-| `debian/` | Debian packaging (`opencode-go-widget_1.0.5_all.deb`) |
+| `debian/` | Debian packaging (`opencode-go-widget_1.0.6_all.deb`) |
 | `packaging/build-deb.sh` | builds the .deb into `dist/` |
 | `assets/` | application icon |
 | `docs/` | screenshots |
@@ -109,7 +108,7 @@ Build the Ubuntu/Debian package:
 
 ```sh
 sudo apt install debhelper dpkg-dev fakeroot
-./packaging/build-deb.sh                   # -> dist/opencode-go-widget_1.0.5_all.deb
+./packaging/build-deb.sh                   # -> dist/opencode-go-widget_1.0.6_all.deb
 ```
 
 ## License

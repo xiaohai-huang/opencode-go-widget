@@ -1,3 +1,10 @@
+opencode-go-widget (1.0.6) unstable; urgency=medium
+
+  * Make --uninstall and the Settings uninstall action delete all user data,
+    including the API key and settings. Remove the keep/purge choice.
+
+ -- xiaohai-huang <jeromehuang18@gmail.com>  Thu, 26 Nov 2026 11:24:18 +0800
+
 opencode-go-widget (1.0.5) unstable; urgency=medium
 
   * Add --uninstall and --uninstall --purge, plus a Settings button, to

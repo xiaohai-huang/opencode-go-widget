@@ -28,14 +28,12 @@ Settings.
 
 Removing the package
 --------------------
-Before removing the package, clean up the per-user state:
+Before removing the package, remove all per-user state:
 
   opencode-go-widget --uninstall
 
-This quits the widget, disables the panel extension, and removes the autostart
-entry and cache. Add --purge to also delete the API key and settings:
-
-  opencode-go-widget --uninstall --purge
+This quits the widget, disables the panel extension, and deletes the autostart
+entry, cache, settings and API key.
 
 Then remove the package:
 

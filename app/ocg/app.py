@@ -560,45 +560,33 @@ class WidgetApp:
         )
         dialog.format_secondary_text(
             "This quits the widget, disables the panel extension, and removes "
-            "the autostart entry and cache. It does not remove the installed "
-            "package.\n\n"
+            "the autostart entry, cache, settings and API key. It does not "
+            "remove the installed package.\n\n"
             "    sudo apt remove opencode-go-widget"
         )
-        purge = Gtk.CheckButton(label="Also delete my API key and settings")
-        dialog.get_message_area().pack_start(purge, False, False, 0)
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        action = dialog.add_button("Clean Up", Gtk.ResponseType.OK)
+        action = dialog.add_button("Remove Everything", Gtk.ResponseType.OK)
         action.get_style_context().add_class("destructive-action")
         dialog.show_all()
         response = dialog.run()
-        purge_key = purge.get_active()
         dialog.destroy()
         if response != Gtk.ResponseType.OK:
             return
 
         from . import uninstall
-        uninstall.cleanup_user_state(purge=purge_key)
+        uninstall.cleanup_user_state()
 
         result = Gtk.MessageDialog(
             transient_for=self._settings_dialog,
             modal=True,
             message_type=Gtk.MessageType.INFO,
             buttons=Gtk.ButtonsType.CLOSE,
-            text="OpenCode Go Widget has been cleaned up",
+            text="All user data has been removed",
         )
-        if purge_key:
-            result.format_secondary_text(
-                "Your settings and API key were deleted.\n\n"
-                "Remove the application itself with:\n\n"
-                "    sudo apt remove opencode-go-widget"
-            )
-        else:
-            result.format_secondary_text(
-                "Your settings and API key were kept in "
-                "~/.config/opencode-go-widget.\n\n"
-                "Remove the application itself with:\n\n"
-                "    sudo apt remove opencode-go-widget"
-            )
+        result.format_secondary_text(
+            "Remove the application itself with:\n\n"
+            "    sudo apt remove opencode-go-widget"
+        )
         result.show_all()
         result.run()
         result.destroy()

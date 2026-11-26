@@ -51,8 +51,8 @@ def disable_extension():
         pass
 
 
-def cleanup_user_state(purge=False):
-    """Disable the extension and remove autostart, cache and optionally config."""
+def cleanup_user_state():
+    """Disable the extension and remove all per-user state."""
     disable_extension()
 
     # Older per-user installs put the extension here; the package now uses the
@@ -64,6 +64,4 @@ def cleanup_user_state(purge=False):
 
     autostart.set_enabled(False)
     shutil.rmtree(CACHE_DIR, ignore_errors=True)
-    if purge:
-        shutil.rmtree(CONFIG_DIR, ignore_errors=True)
-    return purge
+    shutil.rmtree(CONFIG_DIR, ignore_errors=True)
