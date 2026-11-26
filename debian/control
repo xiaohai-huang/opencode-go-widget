@@ -1,0 +1,26 @@
+Source: opencode-go-widget
+Section: gnome
+Priority: optional
+Maintainer: xiaohai-huang <jeromehuang18@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Rules-Requires-Root: no
+Standards-Version: 4.7.1
+Homepage: https://github.com/xiaohai-huang/opencode-go-widget
+
+Package: opencode-go-widget
+Architecture: all
+Depends: python3 (>= 3.10),
+         python3-gi,
+         python3-gi-cairo,
+         python3-cairo,
+         gir1.2-gtk-3.0,
+         gir1.2-ayatanaappindicator3-0.1,
+         ${misc:Depends}
+Recommends: gnome-shell (>= 50~)
+Description: OpenCode Go Widget for the GNOME desktop
+ A panel ring gauge, dropdown and floating desktop card showing OpenCode Go
+ usage for the rolling, weekly and monthly limits.
+ .
+ The GTK app owns the API key and polling, and feeds a bundled GNOME Shell
+ extension over D-Bus. A tray-icon fallback is used when the extension is not
+ enabled.

@@ -1,0 +1,37 @@
+OpenCode Go Widget for Debian/Ubuntu
+===================================
+
+The package installs two halves:
+
+  /usr/lib/opencode-go-widget
+      GTK app: API key, polling and desktop card
+  /usr/share/gnome-shell/extensions/ocg-usage@local
+      Panel ring, weekly label and dropdown
+
+Enable the extension for your user
+----------------------------------
+System extensions are installed but not enabled automatically:
+
+  gnome-extensions enable ocg-usage@local
+
+If that reports that the extension does not exist, log out and back in once,
+then run it again. The extension loads immediately after enabling.
+
+Start the app
+-------------
+Launch "OpenCode Go Widget" from the app grid, open Settings, paste your
+OpenCode Go API key and press Test connection, then Save. The key is stored
+per user in ~/.config/opencode-go-widget/token (mode 0600).
+
+Autostart is off by default. Enable "Start automatically at login" in
+Settings.
+
+Removing the package
+--------------------
+  sudo apt remove opencode-go-widget
+
+Your settings and API key in ~/.config/opencode-go-widget and the cache in
+~/.cache/opencode-go-widget are deliberately left behind. If you enabled
+autostart, turn it off in Settings before removing, or delete
+~/.config/autostart/opencode-go-widget.desktop. Log out and back in to drop
+the panel item.

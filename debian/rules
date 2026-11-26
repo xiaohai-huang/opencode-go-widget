@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+override_dh_auto_test:
+
+override_dh_auto_install:
+	install -d $(CURDIR)/debian/opencode-go-widget/usr/lib/opencode-go-widget/ocg
+	install -m 0644 app/main.py app/style.css \
+		$(CURDIR)/debian/opencode-go-widget/usr/lib/opencode-go-widget/
+	install -m 0644 app/ocg/*.py \
+		$(CURDIR)/debian/opencode-go-widget/usr/lib/opencode-go-widget/ocg/
+	install -D -m 0755 app/bin/opencode-go-widget \
+		$(CURDIR)/debian/opencode-go-widget/usr/lib/opencode-go-widget/bin/opencode-go-widget
+	install -D -m 0644 debian/opencode-go-widget.desktop \
+		$(CURDIR)/debian/opencode-go-widget/usr/share/applications/opencode-go-widget.desktop
+	install -D -m 0644 assets/opencode-go-widget.svg \
+		$(CURDIR)/debian/opencode-go-widget/usr/share/icons/hicolor/scalable/apps/opencode-go-widget.svg
+	install -d $(CURDIR)/debian/opencode-go-widget/usr/share/gnome-shell/extensions/ocg-usage@local
+	install -m 0644 extension/metadata.json extension/extension.js extension/stylesheet.css \
+		$(CURDIR)/debian/opencode-go-widget/usr/share/gnome-shell/extensions/ocg-usage@local/

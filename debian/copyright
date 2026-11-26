@@ -1,0 +1,12 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: opencode-go-widget
+Source: https://github.com/xiaohai-huang/opencode-go-widget
+
+Files: *
+Copyright: 2026 xiaohai-huang
+License: UNLICENSED
+ No license has been chosen for this project yet. All rights reserved.
+ .
+ The author has not granted redistribution or modification rights. Choose a
+ license (for example MIT, GPL-3.0-or-later or Apache-2.0) before distributing
+ binaries or sources to other people.

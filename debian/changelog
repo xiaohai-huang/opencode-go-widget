@@ -1,0 +1,29 @@
+opencode-go-widget (1.0.3) unstable; urgency=medium
+
+  * Rename the application to "OpenCode Go Widget".
+
+ -- xiaohai-huang <jeromehuang18@gmail.com>  Thu, 26 Nov 2026 10:44:40 +0800
+
+opencode-go-widget (1.0.2) unstable; urgency=medium
+
+  * Set the application name and WM class so the shell does not label the
+    window "Main.py".
+  * Rename the Settings window and add an application icon.
+
+ -- xiaohai-huang <jeromehuang18@gmail.com>  Thu, 26 Nov 2026 10:37:04 +0800
+
+opencode-go-widget (1.0.1) unstable; urgency=medium
+
+  * Hide the panel item when the app quits, instead of leaving cached data.
+  * Make Quit close the Settings dialog before exiting.
+  * Center the Settings dialog on screen.
+  * Remove the notification feature.
+  * Show the app version in Settings.
+
+ -- xiaohai-huang <jeromehuang18@gmail.com>  Thu, 26 Nov 2026 10:29:17 +0800
+
+opencode-go-widget (1.0.0) unstable; urgency=medium
+
+  * Initial Debian packaging.
+
+ -- xiaohai-huang <jeromehuang18@gmail.com>  Thu, 26 Nov 2026 10:00:25 +0800
