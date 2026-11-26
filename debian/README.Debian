@@ -28,15 +28,10 @@ Settings.
 
 Removing the package
 --------------------
-Before removing the package, remove all per-user state:
+Remove the package and all per-user state with:
 
-  opencode-go-widget --uninstall
+  opencode-go-widget --uninstall && sudo apt remove opencode-go-widget
 
-This quits the widget, disables the panel extension, and deletes the autostart
-entry, cache, settings and API key.
-
-Then remove the package:
-
-  sudo apt remove opencode-go-widget
-
-The same cleanup is available from Settings -> Uninstall....
+The first command quits the widget, disables the panel extension, and deletes
+the autostart entry, cache, settings and API key. The second removes the
+package. The same cleanup is available from Settings -> Uninstall....
