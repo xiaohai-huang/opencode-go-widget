@@ -113,7 +113,7 @@ class UsageButton extends PanelMenu.Button {
         const panelBox = new St.BoxLayout({style_class: 'ocg-panel-box'});
 
         this._icon = new St.Icon({
-            style_class: 'system-status-icon',
+            style_class: 'system-status-icon ocg-panel-icon',
             gicon: Gio.icon_new_for_string('dialog-information-symbolic'),
         });
 

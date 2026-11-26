@@ -36,6 +36,15 @@
     margin-right: 8px;
 }
 
+/* The theme pads .system-status-icon (6px padding + 4px margin) for icons in
+ * the status-indicators box. On this standalone button that becomes visible
+ * dead space to the left of the ring, so cancel it and let the button's own
+ * -natural-hpadding (12px, symmetric) set the inset. */
+#panel .panel-button .system-status-icon.ocg-panel-icon {
+    padding: 0;
+    margin: 0;
+}
+
 .ocg-panel-label {
     margin-left: 6px;
     color: rgba(255, 255, 255, 0.85);
