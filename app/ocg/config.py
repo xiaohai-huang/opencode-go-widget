@@ -14,7 +14,6 @@ TOKEN_PATH = os.path.join(CONFIG_DIR, "token")
 DEFAULTS = {
     "poll_minutes": 5,
     "tint_icon": True,
-    "notify_at": 90,
     "show_card": True,
     "tray_indicator": True,
     "always_on_top": True,

@@ -16,13 +16,6 @@ from . import autostart, icon, service, usage  # noqa: E402
 from .card import CardWindow, install_css  # noqa: E402
 from .config import Config  # noqa: E402
 
-try:
-    gi.require_version("Notify", "0.7")
-    from gi.repository import Notify
-    HAVE_NOTIFY = True
-except Exception:  # libnotify typelib missing
-    HAVE_NOTIFY = False
-
 
 def friendly_error(err):
     if isinstance(err, usage.AuthError):
@@ -50,7 +43,6 @@ class WidgetApp:
         self.error = None
         self.fetching = False
         self.next_poll = 0.0
-        self.notified = set()
         self._failures = 0
 
         self.card = CardWindow(
@@ -62,12 +54,6 @@ class WidgetApp:
         )
         self.card.connect("delete-event", self._on_delete)
         self.card.set_interval(self.config.get("poll_minutes"))
-
-        if HAVE_NOTIFY:
-            try:
-                Notify.init("OpenCode Go")
-            except Exception:
-                pass
 
         self.menu = None
         self.indicator = None
@@ -156,7 +142,6 @@ class WidgetApp:
             self.card.remember(snapshot)
             self.card.show_snapshot(snapshot)
             self.next_poll = time.time() + interval
-            self._maybe_notify(snapshot)
         else:
             self.error = error
             self._failures += 1
@@ -217,29 +202,6 @@ class WidgetApp:
         elif self.snapshot is not None:
             self.card.refresh_resets()
         return True
-
-    # -- notifications -------------------------------------------------------
-    def _maybe_notify(self, snapshot):
-        threshold = self.config.get("notify_at")
-        if not HAVE_NOTIFY or not threshold:
-            return
-        for meter in snapshot.meters:
-            if meter.percent < threshold:
-                continue
-            stamp = int((meter.reset_at or 0) // 60)
-            token = (meter.key, stamp)
-            if token in self.notified:
-                continue
-            self.notified.add(token)
-            try:
-                note = Notify.Notification.new(
-                    f"OpenCode Go: {meter.label} at {meter.percent:.0f}%",
-                    usage.reset_line(meter) or "Approaching your usage limit",
-                    "dialog-warning",
-                )
-                note.show()
-            except Exception:
-                pass
 
     # -- indicator -----------------------------------------------------------
     @staticmethod
@@ -439,14 +401,11 @@ class WidgetApp:
 
         self.tint_check = Gtk.CheckButton(label="Tint the panel icon by usage (blue → amber → red)")
         self.tint_check.set_active(bool(self.config.get("tint_icon")))
-        self.notify_check = Gtk.CheckButton(label="Notify me at 90% of any limit")
-        self.notify_check.set_active(bool(self.config.get("notify_at")))
         self.on_top_check = Gtk.CheckButton(label="Float the card above other windows")
         self.on_top_check.set_active(bool(self.config.get("always_on_top")))
         self.autostart_check = Gtk.CheckButton(label="Start automatically at login")
         self.autostart_check.set_active(autostart.is_enabled())
         area.pack_start(self.tint_check, False, False, 0)
-        area.pack_start(self.notify_check, False, False, 0)
         area.pack_start(self.on_top_check, False, False, 0)
         area.pack_start(self.autostart_check, False, False, 0)
 
@@ -486,12 +445,10 @@ class WidgetApp:
         self.config.set("poll_minutes", minutes)
         self.card.set_interval(minutes)
         self.config.set("tint_icon", self.tint_check.get_active())
-        self.config.set("notify_at", 90 if self.notify_check.get_active() else 0)
         self.config.set("always_on_top", self.on_top_check.get_active())
         self.config.save()
         self.card.apply_stacking(self.on_top_check.get_active())
         autostart.set_enabled(self.autostart_check.get_active())
-        self.notified.clear()
         self.next_poll = 0
         self.refresh()
         self._rebuild_menu()
