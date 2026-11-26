@@ -4,7 +4,7 @@
 #   ./packaging/build-deb.sh
 #
 # Build dependencies (Debian/Ubuntu):
-#   sudo apt install debhelper dpkg-dev fakeroot
+#   sudo apt install build-essential debhelper dpkg-dev fakeroot
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 for tool in dpkg-buildpackage dh fakeroot; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "error: $tool is missing." >&2
-        echo "On Debian/Ubuntu: sudo apt install debhelper dpkg-dev fakeroot" >&2
+        echo "On Debian/Ubuntu: sudo apt install build-essential debhelper dpkg-dev fakeroot" >&2
         exit 1
     fi
 done

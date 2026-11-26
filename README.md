@@ -101,7 +101,7 @@ app/bin/opencode-go-widget --once          # print usage, exit
 Build the Ubuntu/Debian package:
 
 ```sh
-sudo apt install debhelper dpkg-dev fakeroot
+sudo apt install build-essential debhelper dpkg-dev fakeroot
 ./packaging/build-deb.sh                   # -> dist/opencode-go-widget_1.0.6_all.deb
 ```
 

@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Tags and history are needed to find the previous release.
           fetch-depth: 0
@@ -28,7 +28,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends dpkg-dev debhelper fakeroot
+          sudo apt-get install -y --no-install-recommends build-essential dpkg-dev debhelper fakeroot
 
       - name: Check version consistency
         run: |
@@ -115,7 +115,7 @@ jobs:
           } > dist/RELEASE_NOTES.md
 
       - name: Upload package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: opencode-go-widget-deb
           path: |
@@ -136,13 +136,13 @@ jobs:
       contents: write
     steps:
       - name: Download package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: opencode-go-widget-deb
           path: dist
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: dist/RELEASE_NOTES.md
           files: |
