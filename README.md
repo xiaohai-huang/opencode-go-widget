@@ -5,7 +5,15 @@ desktop. It has two halves that work together: a **GNOME Shell extension** for
 the top bar, and a **GTK app** that owns the API key, polling and the desktop
 card.
 
-![Desktop card](docs/card.png)
+**Desktop widget** — the floating card with usage bars and reset countdowns:
+
+![Desktop widget](docs/card.png)
+
+**Panel gauge** — the ring and weekly `N% used` label in the top bar:
+
+![Panel gauge](docs/panel-gauge.png)
+
+**Panel dropdown** — opens when you click the gauge:
 
 ![Panel dropdown](docs/extension-popup.png)
 
