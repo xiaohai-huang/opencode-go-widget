@@ -1,3 +1,12 @@
+opencode-go-widget (1.0.7) unstable; urgency=medium
+
+  * License the project under MIT and ship the license in the package.
+  * Build, smoke-test and publish the .deb from GitHub Actions, with release
+    notes generated from this changelog.
+  * Document the release process and remove pinned versions from the README.
+
+ -- xiaohai-huang <jeromehuang18@gmail.com>  Thu, 26 Nov 2026 15:43:10 +0800
+
 opencode-go-widget (1.0.6) unstable; urgency=medium
 
   * Make --uninstall and the Settings uninstall action delete all user data,
