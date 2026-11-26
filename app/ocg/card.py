@@ -325,6 +325,7 @@ class RefreshButton(ClickBox):
 class CardWindow(Gtk.Window):
     def __init__(self, config, on_refresh, on_settings, on_hide, on_quit):
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
+        self.set_title("OpenCode Go Widget")
         self.config = config
         self.on_refresh = on_refresh
         self.on_settings = on_settings

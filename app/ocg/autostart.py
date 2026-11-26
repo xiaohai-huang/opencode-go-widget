@@ -36,13 +36,14 @@ def _entry():
     # working directory, and the app's launcher resolves its own location.
     return f"""[Desktop Entry]
 Type=Application
-Name=OpenCode Go Usage
+Name=OpenCode Go Widget
 Comment=Panel ring gauge and desktop card for OpenCode Go usage
 Exec="{launcher_path()}"
-Icon=dialog-information
+Icon=opencode-go-widget
 Terminal=false
 Categories=Utility;
 StartupNotify=false
+StartupWMClass=opencode-go-widget
 X-GNOME-Autostart-enabled=true
 X-GNOME-Autostart-Delay=5
 """

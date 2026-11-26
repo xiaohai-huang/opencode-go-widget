@@ -262,7 +262,7 @@ class WidgetApp:
         connected = self.snapshot is not None
         percent = self.snapshot.worst if connected else 0.0
         path = icon.build_icon(percent, bool(self.config.get("tint_icon")), connected)
-        self.indicator.set_icon_full(path, "OpenCode Go usage")
+        self.indicator.set_icon_full(path, "OpenCode Go Widget")
         if self.fetching and not connected:
             title = "OpenCode Go · checking…"
         elif connected:
@@ -363,7 +363,7 @@ class WidgetApp:
             return
         # Deliberately not transient_for the card: a child of a keep-below
         # window can inherit that stacking and open behind other windows.
-        dialog = Gtk.Dialog(title="OpenCode Go settings")
+        dialog = Gtk.Dialog(title="OpenCode Go Widget — Settings")
         dialog.set_default_size(420, -1)
         dialog.set_position(Gtk.WindowPosition.CENTER)
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)

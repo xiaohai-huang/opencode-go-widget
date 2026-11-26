@@ -1,6 +1,6 @@
 {
   "uuid": "ocg-usage@local",
-  "name": "OpenCode Go Usage",
+  "name": "OpenCode Go Widget",
   "description": "OpenCode Go usage in the top bar, fed by the opencode-go-widget service.",
   "shell-version": ["50", "51"],
   "version": 1

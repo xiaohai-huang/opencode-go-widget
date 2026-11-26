@@ -100,7 +100,7 @@ class CardToggleItem extends PopupMenu.PopupSwitchMenuItem {
 const UsageButton = GObject.registerClass(
 class UsageButton extends PanelMenu.Button {
     _init() {
-        super._init(0.5, 'OpenCode Go', false);
+        super._init(0.5, 'OpenCode Go Widget', false);
         this._payload = null;
         this._rows = [];
         this._meterKeys = '';

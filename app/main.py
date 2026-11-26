@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""OpenCode Go usage widget: panel ring gauge + desktop card."""
+"""OpenCode Go Widget: panel ring gauge + desktop card."""
 
 import argparse
 import os
@@ -79,7 +79,15 @@ def main(argv=None):
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import GLib, Gtk
+    gi.require_version("Gdk", "3.0")
+    from gi.repository import Gdk, GLib, Gtk
+
+    # The process is "python3 main.py"; without this the shell labels the
+    # window "Main.py" and cannot match it to the desktop entry.
+    GLib.set_prgname("opencode-go-widget")
+    GLib.set_application_name("OpenCode Go Widget")
+    Gdk.set_program_class("opencode-go-widget")
+    Gtk.Window.set_default_icon_name("opencode-go-widget")
 
     from ocg.app import WidgetApp
     from ocg.config import Config, ensure_dir
@@ -113,7 +121,6 @@ def main(argv=None):
             if window is None:
                 return False
             width, height = window.get_width(), window.get_height()
-            from gi.repository import Gdk
             pixbuf = Gdk.pixbuf_get_from_window(window, 0, 0, width, height)
             if pixbuf is not None:
                 pixbuf.savev(args.screenshot, "png", [], [])
