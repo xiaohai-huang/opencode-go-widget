@@ -16,6 +16,8 @@ from . import __version__, autostart, icon, service, usage  # noqa: E402
 from .card import CardWindow, install_css  # noqa: E402
 from .config import Config  # noqa: E402
 
+EXTENSION_UUID = "ocg-usage@local"
+
 
 def friendly_error(err):
     if isinstance(err, usage.AuthError):
@@ -55,18 +57,6 @@ class WidgetApp:
         self.card.connect("delete-event", self._on_delete)
         self.card.set_interval(self.config.get("poll_minutes"))
 
-        self.menu = None
-        self.indicator = None
-        # The shell extension draws the panel item when present; don't duplicate.
-        if self.config.get("tray_indicator", True) and not self._extension_present():
-            self.indicator = AyatanaAppIndicator3.Indicator.new(
-                "opencode-go-widget",
-                "dialog-information-symbolic",
-                AyatanaAppIndicator3.IndicatorCategory.APPLICATION_STATUS,
-            )
-            self.indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
-            self.indicator.set_title("OpenCode Go")
-
         # D-Bus surface for the GNOME Shell extension (data + actions).
         self.service = service.WidgetService(
             on_refresh=self.refresh,
@@ -77,6 +67,20 @@ class WidgetApp:
         )
         if not self.service.start():
             print("opencode-go-widget: D-Bus service unavailable")
+
+        # GNOME only discovers extensions at session start. Once the packaged
+        # extension is known, enable it without making the user run a command.
+        extension_enabled = self._ensure_extension_enabled()
+
+        self.menu = None
+        self.indicator = None
+        # The shell extension draws the panel item when present; don't duplicate.
+        if self.config.get("tray_indicator", True):
+            if extension_enabled:
+                # Enabling is asynchronous; only fall back if it did not load.
+                GLib.timeout_add(1500, self._tray_fallback_if_needed)
+            elif not self._extension_present():
+                self._create_indicator()
 
         if not self.config.get("show_card"):
             self.card.hide()
@@ -204,6 +208,21 @@ class WidgetApp:
         return True
 
     # -- indicator -----------------------------------------------------------
+    def _create_indicator(self):
+        self.indicator = AyatanaAppIndicator3.Indicator.new(
+            "opencode-go-widget",
+            "dialog-information-symbolic",
+            AyatanaAppIndicator3.IndicatorCategory.APPLICATION_STATUS,
+        )
+        self.indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
+        self.indicator.set_title("OpenCode Go")
+
+    def _tray_fallback_if_needed(self):
+        if self.indicator is None and not self._extension_present():
+            self._create_indicator()
+            self._update_indicator()
+        return False
+
     @staticmethod
     def _extension_present():
         try:
@@ -213,6 +232,45 @@ class WidgetApp:
                 "org.freedesktop.DBus", "NameHasOwner",
                 GLib.Variant("(s)", ("org.opencode_go.ShellUI",)),
                 None, Gio.DBusCallFlags.NONE, 500, None)
+            return bool(reply.unpack()[0])
+        except Exception:
+            return False
+
+    @staticmethod
+    def _extension_installed():
+        data_home = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+        for base in (data_home, "/usr/share"):
+            path = os.path.join(base, "gnome-shell", "extensions",
+                                EXTENSION_UUID, "metadata.json")
+            if os.path.isfile(path):
+                return True
+        return False
+
+    def _ensure_extension_enabled(self):
+        """Enable the packaged extension unless the user turned it off.
+
+        GNOME only scans extension directories at session start, so this works
+        from the first app start after login. If the extension is not known to
+        the running shell yet, EnableExtension returns false and nothing
+        changes; the tray icon covers the current session.
+        """
+        if not self._extension_installed():
+            return False
+        try:
+            settings = Gio.Settings.new("org.gnome.shell")
+            if EXTENSION_UUID in settings.get_strv("disabled-extensions"):
+                return False
+            if EXTENSION_UUID in settings.get_strv("enabled-extensions"):
+                return True
+        except Exception:
+            return False
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            reply = bus.call_sync(
+                "org.gnome.Shell.Extensions", "/org/gnome/Shell/Extensions",
+                "org.gnome.Shell.Extensions", "EnableExtension",
+                GLib.Variant("(s)", (EXTENSION_UUID,)),
+                GLib.VariantType("(b)"), Gio.DBusCallFlags.NONE, 3000, None)
             return bool(reply.unpack()[0])
         except Exception:
             return False

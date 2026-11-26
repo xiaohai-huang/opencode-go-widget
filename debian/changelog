@@ -1,3 +1,10 @@
+opencode-go-widget (1.0.4) unstable; urgency=medium
+
+  * Enable the bundled panel extension automatically at app startup, after
+    the one-time login required for GNOME Shell to discover it.
+
+ -- xiaohai-huang <jeromehuang18@gmail.com>  Thu, 26 Nov 2026 11:01:59 +0800
+
 opencode-go-widget (1.0.3) unstable; urgency=medium
 
   * Rename the application to "OpenCode Go Widget".

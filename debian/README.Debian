@@ -8,14 +8,14 @@ The package installs two halves:
   /usr/share/gnome-shell/extensions/ocg-usage@local
       Panel ring, weekly label and dropdown
 
-Enable the extension for your user
-----------------------------------
-System extensions are installed but not enabled automatically:
+Enabling the panel extension
+----------------------------
+GNOME Shell only scans extension directories at session start, so log out and
+back in once after installing. Then start "OpenCode Go Widget"; at startup it
+enables the bundled extension automatically. It leaves the extension disabled
+if you have explicitly disabled it in the Extensions app.
 
-  gnome-extensions enable ocg-usage@local
-
-If that reports that the extension does not exist, log out and back in once,
-then run it again. The extension loads immediately after enabling.
+Until that next login the app uses the tray-icon fallback.
 
 Start the app
 -------------

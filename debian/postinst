@@ -7,11 +7,10 @@ if [ "$1" = "configure" ] && [ -z "${2:-}" ]; then
 OpenCode Go Widget was installed.
 
   1. Log out and back in once (GNOME Shell scans system extensions at startup).
-  2. Enable the panel extension:
-       gnome-extensions enable ocg-usage@local
-  3. Start "OpenCode Go Widget" from the app grid and add your API key.
-     Turn on "Start automatically at login" in Settings if you want it to
-     run at every login.
+  2. Start "OpenCode Go Widget" from the app grid; it enables the panel
+     extension automatically.
+  3. Add your API key in Settings. Turn on "Start automatically at login"
+     there if you want it to run at every login.
 
 EOF
 fi
