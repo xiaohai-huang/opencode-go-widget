@@ -51,6 +51,7 @@ class WidgetApp:
         self.fetching = False
         self.next_poll = 0.0
         self.notified = set()
+        self._failures = 0
 
         self.card = CardWindow(
             self.config,
@@ -99,11 +100,25 @@ class WidgetApp:
             self._update_indicator()
             self._publish()
         else:
+            # Show the previous session's numbers while the first request is in
+            # flight; at login the network often is not up yet.
+            cached = self._cached_snapshot()
+            if cached is not None:
+                self.snapshot = cached
+                self.card.remember(cached)
+                self.card.show_snapshot(cached)
             self._update_indicator()
             self._publish()
             GLib.idle_add(self.refresh)
 
-        GLib.timeout_add_seconds(20, self._tick)
+        # A login-time poll can beat NetworkManager; retry the moment the
+        # network comes back instead of waiting out the retry interval.
+        self._network = Gio.NetworkMonitor.get_default()
+        self._network.connect("network-changed", self._on_network_changed)
+
+        # Retries are checked on this tick; keep it short enough that the
+        # few-seconds startup retry is not rounded up to a minute.
+        GLib.timeout_add_seconds(5, self._tick)
 
     # -- polling -------------------------------------------------------------
     def refresh(self):
@@ -134,6 +149,7 @@ class WidgetApp:
         self.card.set_busy(False)
         interval = max(1, int(self.config.get("poll_minutes") or 5)) * 60
         if snapshot is not None:
+            self._failures = 0
             self.snapshot = snapshot
             self.error = None
             self.card.remember(snapshot)
@@ -142,9 +158,15 @@ class WidgetApp:
             self._maybe_notify(snapshot)
         else:
             self.error = error
-            # Retry quickly on transient trouble, slowly on bad credentials.
-            retry = 60 if isinstance(error, (usage.NetworkError,)) or \
-                (isinstance(error, usage.ServerError) and error.status == 429) else interval
+            self._failures += 1
+            if isinstance(error, usage.NetworkError):
+                # Boots and resumes often race the network stack: retry in a
+                # few seconds, then back off up to a minute.
+                retry = min(60, 5 * 2 ** min(self._failures - 1, 4))
+            elif isinstance(error, usage.ServerError) and error.status == 429:
+                retry = 60
+            else:
+                retry = interval
             self.next_poll = time.time() + retry
             if self.snapshot is not None:
                 self.card.show_snapshot(self.snapshot, error=friendly_error(error))
@@ -153,6 +175,33 @@ class WidgetApp:
         self._update_indicator()
         self._publish()
         return False
+
+    def _on_network_changed(self, _monitor, available):
+        if not available or self.fetching:
+            return
+        if self.snapshot is not None and self.error is None:
+            return
+        self.next_poll = 0
+        self.refresh()
+
+    def _cached_snapshot(self):
+        """Load the last payload if it is recent enough to still be true.
+
+        Deliberately ignores old caches: a 5-hour meter from yesterday would
+        show a bogus number on the panel until the first fetch lands.
+        """
+        try:
+            path = os.path.join(icon.CACHE_DIR, "status.json")
+            with open(path, encoding="utf-8") as fh:
+                payload = json.load(fh)
+        except (OSError, ValueError):
+            return None
+        snapshot = service.WidgetService.snapshot_from_payload(payload)
+        if snapshot is None:
+            return None
+        age = time.time() - snapshot.fetched_at
+        limit = max(600, int(self.config.get("poll_minutes") or 5) * 180)
+        return snapshot if 0 <= age <= limit else None
 
     def _tick(self):
         # If the shell extension shows up later, retire our tray icon.

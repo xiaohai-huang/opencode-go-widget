@@ -79,9 +79,49 @@ class WidgetService:
                     "percent": round(meter.percent, 1),
                     "clock": usage.countdown_text(meter, now),
                     "when": usage.absolute_text(meter),
+                    "reset_at": meter.reset_at,
+                    "resets_in_s": meter.resets_in_s,
                     "icon": meter_icons.get(meter.key),
                 })
         return payload
+
+    @staticmethod
+    def snapshot_from_payload(payload):
+        """Rebuild a Snapshot from a payload mirrored to status.json.
+
+        Only the fields the payload carries are restored; used/limit are not
+        needed by the panel or the popup.
+        """
+        if not isinstance(payload, dict):
+            return None
+        meters = []
+        for item in payload.get("meters") or []:
+            if not isinstance(item, dict):
+                continue
+            try:
+                percent = float(item.get("percent") or 0.0)
+                reset_at = item.get("reset_at")
+                resets_in_s = item.get("resets_in_s")
+                meters.append(usage.Meter(
+                    key=item.get("key") or "unknown",
+                    label=item.get("label") or "",
+                    percent=percent,
+                    reset_at=float(reset_at) if reset_at is not None else None,
+                    resets_in_s=float(resets_in_s) if resets_in_s is not None else None,
+                ))
+            except (TypeError, ValueError):
+                continue
+        if not meters:
+            return None
+        try:
+            fetched_at = float(payload.get("fetched_at") or 0.0)
+        except (TypeError, ValueError):
+            return None
+        return usage.Snapshot(
+            meters=meters,
+            plan=payload.get("plan"),
+            fetched_at=fetched_at,
+        )
 
     # -- D-Bus ---------------------------------------------------------------
     def start(self):
