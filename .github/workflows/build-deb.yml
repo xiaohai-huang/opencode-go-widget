@@ -1,36 +1,153 @@
-name: Build .deb
+name: Build and publish .deb
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  deb:
+  build:
+    name: Build .deb
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          # Tags and history are needed to find the previous release.
+          fetch-depth: 0
 
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends debhelper fakeroot
+          sudo apt-get install -y --no-install-recommends dpkg-dev debhelper fakeroot
+
+      - name: Check version consistency
+        run: |
+          APP_VERSION=$(sed -n 's/^__version__ = "\([^"]*\)"/\1/p' app/ocg/__init__.py)
+          DEB_VERSION=$(dpkg-parsechangelog -SVersion)
+          if [ -z "$APP_VERSION" ]; then
+            echo "::error::Could not read __version__ from app/ocg/__init__.py"
+            exit 1
+          fi
+          if [ "$APP_VERSION" != "$DEB_VERSION" ]; then
+            echo "::error::app version $APP_VERSION != debian/changelog version $DEB_VERSION"
+            exit 1
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$APP_VERSION" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match v$APP_VERSION"
+            exit 1
+          fi
+
+      - name: Check Python sources
+        run: python3 -m compileall -q app
 
       - name: Build package
         run: ./packaging/build-deb.sh
 
-      - name: Upload artifact
+      - name: Check package contents
+        run: |
+          DEB=$(ls dist/*.deb)
+          dpkg-deb --info "$DEB"
+          dpkg-deb --contents "$DEB" | awk '{print $6}' > /tmp/deb-contents.txt
+          for path in \
+            ./usr/bin/opencode-go-widget \
+            ./usr/lib/opencode-go-widget/main.py \
+            ./usr/lib/opencode-go-widget/style.css \
+            ./usr/lib/opencode-go-widget/ocg/app.py \
+            ./usr/share/applications/opencode-go-widget.desktop \
+            ./usr/share/icons/hicolor/scalable/apps/opencode-go-widget.svg \
+            ./usr/share/gnome-shell/extensions/ocg-usage@local/extension.js \
+            ./usr/share/gnome-shell/extensions/ocg-usage@local/metadata.json \
+            ./usr/share/gnome-shell/extensions/ocg-usage@local/stylesheet.css \
+            ./usr/share/doc/opencode-go-widget/copyright; do
+            if ! grep -qx "$path" /tmp/deb-contents.txt; then
+              echo "::error::missing $path from the package"
+              exit 1
+            fi
+          done
+          if ! grep -qE '^\./usr/share/doc/opencode-go-widget/LICENSE(\.gz)?$' /tmp/deb-contents.txt; then
+            echo "::error::missing LICENSE from the package"
+            exit 1
+          fi
+
+      - name: Generate checksums and release notes
+        run: |
+          VERSION=$(dpkg-parsechangelog -SVersion)
+          DEB=$(basename "$(ls dist/*.deb)")
+          (cd dist && sha256sum *.deb *.changes *.buildinfo > SHA256SUMS)
+
+          {
+            echo "## OpenCode Go Widget $VERSION"
+            echo
+            echo "### Changes"
+            echo
+            dpkg-parsechangelog -SChanges | sed -n '/^  \* /,$p' | sed -e 's/^  \* /- /' -e 's/^    /  /'
+            echo
+            echo "### Install"
+            echo
+            echo '```sh'
+            echo "sudo apt install ./$DEB"
+            echo '```'
+            echo
+            echo "Requires Ubuntu with GNOME Shell 50 or 51. Log out and back in once"
+            echo "after installing, then start **OpenCode Go Widget** and add your API"
+            echo "key in Settings."
+            echo
+            echo "### Checksums"
+            echo
+            echo 'See the attached `SHA256SUMS` file.'
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              PREV_TAG=$(git describe --tags --abbrev=0 --match 'v*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+              if [ -n "$PREV_TAG" ]; then
+                echo
+                echo "**Full Changelog**: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}...${GITHUB_REF_NAME}"
+              fi
+            fi
+          } > dist/RELEASE_NOTES.md
+
+      - name: Upload package
         uses: actions/upload-artifact@v4
         with:
           name: opencode-go-widget-deb
-          path: dist/*.deb
+          path: |
+            dist/*.deb
+            dist/*.changes
+            dist/*.buildinfo
+            dist/SHA256SUMS
+            dist/RELEASE_NOTES.md
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Attach package to release
-        if: startsWith(github.ref, 'refs/tags/')
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: opencode-go-widget-deb
+          path: dist
+
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.deb
+          body_path: dist/RELEASE_NOTES.md
+          files: |
+            dist/*.deb
+            dist/*.changes
+            dist/*.buildinfo
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true

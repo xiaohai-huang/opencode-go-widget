@@ -67,6 +67,7 @@ package. The same cleanup is available from Settings → **Uninstall…**.
 | `extension/` | GNOME Shell extension: panel ring + weekly label + dropdown |
 | `debian/` | Debian packaging (`opencode-go-widget_1.0.6_all.deb`) |
 | `packaging/build-deb.sh` | builds the .deb into `dist/` |
+| `.github/workflows/build-deb.yml` | builds on push/PR, publishes the .deb on `v*` tags |
 | `assets/` | application icon |
 | `docs/` | screenshots |
 
@@ -104,8 +105,35 @@ sudo apt install debhelper dpkg-dev fakeroot
 ./packaging/build-deb.sh                   # -> dist/opencode-go-widget_1.0.6_all.deb
 ```
 
+## Releasing
+
+Releases are built and published by
+[`.github/workflows/build-deb.yml`](.github/workflows/build-deb.yml).
+
+1. Bump `__version__` in `app/ocg/__init__.py` and add the same version to
+   `debian/changelog`. With `devscripts` installed, `dch` does the changelog
+   part (otherwise edit it by hand):
+
+   ```sh
+   dch -v 1.0.7 -D unstable "Describe the user-visible changes."
+   ```
+
+   The changelog entry becomes the release notes, so write it for users. The
+   workflow fails if the tag, `__version__` and `debian/changelog` disagree.
+
+2. Commit, tag and push:
+
+   ```sh
+   git commit -am "Release 1.0.7"
+   git tag v1.0.7
+   git push origin main --tags
+   ```
+
+3. The tag starts the workflow. It builds and smoke-tests the `.deb`, then
+   publishes a GitHub release with the package, `SHA256SUMS`, the `.changes`
+   and `.buildinfo` files, and release notes generated from the changelog.
+   Pushes to `main` and pull requests build the package without publishing.
+
 ## License
 
-No license has been chosen yet. Add one before publishing publicly. The
-packaged `debian/copyright` is a placeholder that says so; replace it when you
-pick a license.
+MIT. See [LICENSE](LICENSE).
