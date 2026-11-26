@@ -34,10 +34,12 @@ Ayatana AppIndicator).
 
 ## Install
 
-Download `opencode-go-widget_1.0.6_all.deb` from the releases page and run:
+Download the latest `.deb` from the
+[releases page](https://github.com/xiaohai-huang/opencode-go-widget/releases/latest)
+and run:
 
 ```sh
-sudo apt install ./opencode-go-widget_1.0.6_all.deb
+sudo apt install ./opencode-go-widget_*.deb
 ```
 
 Then **log out and back in** once. GNOME Shell only scans extension
@@ -65,7 +67,7 @@ package. The same cleanup is available from Settings → **Uninstall…**.
 | --- | --- |
 | `app/` | GTK app: card, polling, D-Bus service, settings |
 | `extension/` | GNOME Shell extension: panel ring + weekly label + dropdown |
-| `debian/` | Debian packaging (`opencode-go-widget_1.0.6_all.deb`) |
+| `debian/` | Debian packaging for the Ubuntu .deb |
 | `packaging/build-deb.sh` | builds the .deb into `dist/` |
 | `.github/workflows/build-deb.yml` | builds on push/PR, publishes the .deb on `v*` tags |
 | `assets/` | application icon |
@@ -102,7 +104,7 @@ Build the Ubuntu/Debian package:
 
 ```sh
 sudo apt install build-essential debhelper dpkg-dev fakeroot
-./packaging/build-deb.sh                   # -> dist/opencode-go-widget_1.0.6_all.deb
+./packaging/build-deb.sh                   # -> dist/opencode-go-widget_*.deb
 ```
 
 ## Releasing
@@ -115,18 +117,19 @@ Releases are built and published by
    part (otherwise edit it by hand):
 
    ```sh
-   dch -v 1.0.7 -D unstable "Describe the user-visible changes."
+   dch -v X.Y.Z -D unstable "Describe the user-visible changes."
    ```
 
-   The changelog entry becomes the release notes, so write it for users. The
-   workflow fails if the tag, `__version__` and `debian/changelog` disagree.
+   Replace `X.Y.Z` with the new version. The changelog entry becomes the
+   release notes, so write it for users. The workflow fails if the tag,
+   `__version__` and `debian/changelog` disagree.
 
 2. Commit, tag and push:
 
    ```sh
-   git commit -am "Release 1.0.7"
-   git tag v1.0.7
-   git push origin main v1.0.7
+   git commit -am "Release X.Y.Z"
+   git tag vX.Y.Z
+   git push origin main vX.Y.Z
    ```
 
    Push the tag explicitly rather than with `--tags`, so only the version
