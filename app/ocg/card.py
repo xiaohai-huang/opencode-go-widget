@@ -482,7 +482,7 @@ class CardWindow(Gtk.Window):
         self.menu.append(self.menu_collapse)
         for label, callback in (
             ("Refresh now", lambda *_: self.on_refresh()),
-            ("Settings…", lambda *_: self.on_settings()),
+            ("Settings", lambda *_: self.on_settings()),
             ("Hide card", lambda *_: self.on_hide()),
             ("Quit", lambda *_: self.on_quit()),
         ):

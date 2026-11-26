@@ -38,8 +38,8 @@ Data comes from `GET https://opencode.ai/inference/go/v1/usage` with your Go API
    ~/.local/share/opencode-go-widget/bin/opencode-go-widget
    ```
 
-3. Click the ring in the top bar → **Settings…** (or right-click the desktop card →
-   **Settings…**) → paste the key → **Test connection** → **Save**.
+3. Click the ring in the top bar → **Settings** (or right-click the desktop card →
+   **Settings**) → paste the key → **Test connection** → **Save**.
 
 The key is stored at `~/.config/opencode-go-widget/token` with mode `0600`.
 Precedence is: `token` in `config.json`, then the token file, then the

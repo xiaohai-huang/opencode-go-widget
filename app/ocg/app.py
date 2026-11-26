@@ -87,6 +87,7 @@ class WidgetApp:
             on_settings=self.open_settings,
             on_card=self.show_card,
             on_card_visible=self.set_card_visible,
+            on_quit=self.quit,
         )
         if not self.service.start():
             print("opencode-go-widget: D-Bus service unavailable")
@@ -360,7 +361,7 @@ class WidgetApp:
 
         for label, callback in (
             ("Refresh now", lambda *_: self.refresh()),
-            ("Settings…", lambda *_: self.open_settings()),
+            ("Settings", lambda *_: self.open_settings()),
         ):
             item = Gtk.MenuItem(label=label)
             item.connect("activate", callback)

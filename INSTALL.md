@@ -30,7 +30,7 @@ cd opencode-go-widget-1.0.0
 Then **log out and log back in**. GNOME Shell only loads newly installed
 extensions in a fresh session.
 
-After logging in, click the ring in the top bar → **Settings…**, paste your own
+After logging in, click the ring in the top bar → **Settings**, paste your own
 OpenCode Go API key from <https://opencode.ai/auth>, press **Test connection**
 and **Save**.
 

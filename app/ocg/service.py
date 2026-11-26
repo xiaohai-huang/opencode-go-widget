@@ -31,6 +31,7 @@ XML = """
     <method name="SetCardVisible">
       <arg type="b" direction="in"/>
     </method>
+    <method name="Quit"/>
     <signal name="UsageChanged">
       <arg type="s"/>
     </signal>
@@ -40,11 +41,13 @@ XML = """
 
 
 class WidgetService:
-    def __init__(self, on_refresh, on_settings, on_card, on_card_visible=None):
+    def __init__(self, on_refresh, on_settings, on_card, on_card_visible=None,
+                 on_quit=None):
         self._on_refresh = on_refresh
         self._on_settings = on_settings
         self._on_card = on_card
         self._on_card_visible = on_card_visible
+        self._on_quit = on_quit
         self._payload = {"meters": [], "error": "starting"}
         self._connection = None
         self._registration = None
@@ -158,6 +161,10 @@ class WidgetService:
             visible = bool(parameters.unpack()[0])
             if self._on_card_visible is not None:
                 GLib.idle_add(lambda: (self._on_card_visible(visible), False)[1])
+        elif method == "Quit":
+            invocation.return_value(None)
+            if self._on_quit is not None:
+                GLib.idle_add(lambda: (self._on_quit(), False)[1])
         else:
             invocation.return_dbus_error(
                 "org.freedesktop.DBus.Error.UnknownMethod", f"no {method}")

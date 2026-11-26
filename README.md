@@ -48,7 +48,7 @@ cd opencode-go-widget
 ```
 
 Then **log out and back in** (a newly installed extension is only loaded by a
-fresh shell session), click the ring → **Settings…**, and paste your own
+fresh shell session), click the ring → **Settings**, and paste your own
 OpenCode Go key.
 
 See [INSTALL.md](INSTALL.md) for details, dependencies and uninstall.

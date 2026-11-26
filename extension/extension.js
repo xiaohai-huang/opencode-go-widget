@@ -21,6 +21,7 @@ const INTERFACE_XML = `
     <method name="OpenSettings"/>
     <method name="ShowCard"/>
     <method name="SetCardVisible"><arg type="b" direction="in"/></method>
+    <method name="Quit"/>
     <signal name="UsageChanged"><arg type="s"/></signal>
   </interface>
 </node>`;
@@ -289,11 +290,7 @@ class UsageButton extends PanelMenu.Button {
 
         this._toggle = new CardToggleItem('Show desktop widget', false);
         // Mirror the quick-settings row: icon, label, switch.
-        this._toggle.insert_child_at_index(new St.Icon({
-            icon_name: 'video-display-symbolic',
-            style_class: 'popup-menu-icon ocg-toggle-icon',
-            y_align: Clutter.ActorAlign.CENTER,
-        }), 1);
+        this._addIcon(this._toggle, 'video-display-symbolic');
         this._toggle.connect('toggled', (_item, state) => {
             if (this._updatingToggle)
                 return;
@@ -301,9 +298,28 @@ class UsageButton extends PanelMenu.Button {
         });
         this.menu.addMenuItem(this._toggle);
 
-        const settings = new PopupMenu.PopupMenuItem('Settings…');
-        settings.connect('activate', () => this._proxy.OpenSettingsRemote());
-        this.menu.addMenuItem(settings);
+        this.menu.addMenuItem(this._action('Settings', 'preferences-system-symbolic',
+            () => this._proxy.OpenSettingsRemote()));
+
+        this.menu.addMenuItem(this._action('Quit', 'system-shutdown-symbolic',
+            () => this._proxy.QuitRemote()));
+    }
+
+    /* PopupMenuItem has no icon slot; insert one after the (hidden) ornament,
+     * the way the shell's own rows do. */
+    _addIcon(item, iconName) {
+        item.insert_child_at_index(new St.Icon({
+            icon_name: iconName,
+            style_class: 'popup-menu-icon ocg-menu-icon',
+            y_align: Clutter.ActorAlign.CENTER,
+        }), 1);
+    }
+
+    _action(label, iconName, callback) {
+        const item = new PopupMenu.PopupMenuItem(label);
+        this._addIcon(item, iconName);
+        item.connect('activate', callback);
+        return item;
     }
 
     _applyState(payload) {
