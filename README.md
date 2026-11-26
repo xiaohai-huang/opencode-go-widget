@@ -1,9 +1,9 @@
-# OpenCode Go usage widget
+# OpenCode Go Widget
 
 A usage gauge for [OpenCode Go](https://opencode.ai/docs/go/) on the Ubuntu
 desktop. It has two halves that work together: a **GNOME Shell extension** for
-the top bar, and a **GTK app** that owns the API key, polling, the desktop card
-and notifications.
+the top bar, and a **GTK app** that owns the API key, polling and the desktop
+card.
 
 ![Desktop card](docs/card.png)
 
@@ -19,48 +19,58 @@ and notifications.
 - **Desktop card** with bars, reset countdowns, and a spinning refresh control.
   Minimize/expand without the title bar moving, drag it anywhere, and it floats
   above other windows without ever taking keyboard focus.
-- **Autostart switch** in Settings, plus notifications at 90% and a tray-icon
-  fallback when the extension is not available.
+- **Settings** for the poll interval, icon tint, card stacking, autostart and
+  the API key. The app version is shown at the bottom.
+- **Tray-icon fallback** when the extension is not available.
 
 The API key never leaves the machine: requests go straight to
 `https://opencode.ai/inference/go/v1/usage`.
 
 ## Requirements
 
-- GNOME Shell **50 or 51** (the extension's `shell-version` field).
-- `python3-gi`, `python3-cairo`, `gir1.2-gtk-3.0`,
-  `gir1.2-ayatanaappindicator3-0.1`. Notifications additionally use
-  `gir1.2-notify-0.7`; everything works without it.
-
-On Ubuntu/Debian:
-
-```sh
-sudo apt install python3-gi python3-cairo gir1.2-gtk-3.0 \
-    gir1.2-ayatanaappindicator3-0.1 gir1.2-notify-0.7
-```
+Ubuntu with GNOME Shell **50 or 51**. The .deb installs the Python/GTK
+dependencies (`python3-gi`, `python3-gi-cairo`, `python3-cairo`, GTK 3 and
+Ayatana AppIndicator).
 
 ## Install
 
+Download `opencode-go-widget_1.0.3_all.deb` from the releases page and run:
+
 ```sh
-git clone https://github.com/xiaohai-huang/opencode-go-widget.git
-cd opencode-go-widget
-./install.sh
+sudo apt install ./opencode-go-widget_1.0.3_all.deb
 ```
 
-Then **log out and back in** (a newly installed extension is only loaded by a
-fresh shell session), click the ring → **Settings**, and paste your own
-OpenCode Go key.
+Then **log out and back in** once, and enable the bundled extension:
 
-See [INSTALL.md](INSTALL.md) for details, dependencies and uninstall.
+```sh
+gnome-extensions enable ocg-usage@local
+```
+
+Launch **OpenCode Go Widget** from the app grid, open Settings, paste your key,
+press **Test connection**, then **Save**. Autostart is off by default; turn on
+**Start automatically at login** in Settings.
+
+## Uninstall
+
+```sh
+sudo apt remove opencode-go-widget
+```
+
+Your settings and API key in `~/.config/opencode-go-widget` are kept. Turn off
+autostart in Settings before removing, or delete
+`~/.config/autostart/opencode-go-widget.desktop`. Log out and back in to drop
+the panel item.
 
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `app/` | GTK app: card, polling, D-Bus service, settings. Run with `app/bin/opencode-go-widget` |
+| `app/` | GTK app: card, polling, D-Bus service, settings |
 | `extension/` | GNOME Shell extension: panel ring + weekly label + dropdown |
+| `debian/` | Debian packaging (`opencode-go-widget_1.0.3_all.deb`) |
+| `packaging/build-deb.sh` | builds the .deb into `dist/` |
+| `assets/` | application icon |
 | `docs/` | screenshots |
-| `install.sh`, `uninstall.sh` | per-user install into `~/.local/share` |
 
 ## How it works
 
@@ -80,18 +90,24 @@ See [INSTALL.md](INSTALL.md) for details, dependencies and uninstall.
   `org.gnome.Shell.Extensions.ReloadExtension` but does not implement it, and
   disable/enable reuses the cached ES module.
 
-Deeper implementation notes are in [app/README.md](app/README.md).
-
 ## Development
 
-Run straight from a checkout without installing:
+Run from a checkout:
 
 ```sh
 app/bin/opencode-go-widget --demo          # sample numbers
 app/bin/opencode-go-widget --once          # print usage, exit
-app/bin/opencode-go-widget --screenshot out.png
+```
+
+Build the Ubuntu/Debian package:
+
+```sh
+sudo apt install debhelper dpkg-dev fakeroot
+./packaging/build-deb.sh                   # -> dist/opencode-go-widget_1.0.3_all.deb
 ```
 
 ## License
 
-No license has been chosen yet. Add one before publishing publicly.
+No license has been chosen yet. Add one before publishing publicly. The
+packaged `debian/copyright` is a placeholder that says so; replace it when you
+pick a license.
