@@ -3,6 +3,7 @@ Type=Application
 Name=OpenCode Go Widget
 Comment=Panel ring gauge and desktop card for OpenCode Go usage
 Exec=/usr/bin/opencode-go-widget
+TryExec=/usr/bin/opencode-go-widget
 Icon=opencode-go-widget
 Terminal=false
 Categories=Utility;

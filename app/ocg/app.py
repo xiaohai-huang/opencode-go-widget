@@ -490,6 +490,14 @@ class WidgetApp:
         version_label.get_style_context().add_class("dim-label")
         area.pack_start(version_label, False, False, 0)
 
+        separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        area.pack_start(separator, False, False, 6)
+        uninstall_button = Gtk.Button(label="Uninstall…")
+        uninstall_button.get_style_context().add_class("destructive-action")
+        uninstall_button.set_halign(Gtk.Align.START)
+        uninstall_button.connect("clicked", self._on_uninstall_clicked)
+        area.pack_start(uninstall_button, False, False, 0)
+
         test_button.connect("clicked", self._on_test_clicked)
         self._settings_dialog = dialog
         dialog.show_all()
@@ -541,6 +549,60 @@ class WidgetApp:
         buffer = self.raw_view.get_buffer()
         buffer.set_text(raw or detail or "")
         return False
+
+    def _on_uninstall_clicked(self, _button):
+        dialog = Gtk.MessageDialog(
+            transient_for=self._settings_dialog,
+            modal=True,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.NONE,
+            text="Uninstall OpenCode Go Widget?",
+        )
+        dialog.format_secondary_text(
+            "This quits the widget, disables the panel extension, and removes "
+            "the autostart entry and cache. It does not remove the installed "
+            "package.\n\n"
+            "    sudo apt remove opencode-go-widget"
+        )
+        purge = Gtk.CheckButton(label="Also delete my API key and settings")
+        dialog.get_message_area().pack_start(purge, False, False, 0)
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        action = dialog.add_button("Clean Up", Gtk.ResponseType.OK)
+        action.get_style_context().add_class("destructive-action")
+        dialog.show_all()
+        response = dialog.run()
+        purge_key = purge.get_active()
+        dialog.destroy()
+        if response != Gtk.ResponseType.OK:
+            return
+
+        from . import uninstall
+        uninstall.cleanup_user_state(purge=purge_key)
+
+        result = Gtk.MessageDialog(
+            transient_for=self._settings_dialog,
+            modal=True,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.CLOSE,
+            text="OpenCode Go Widget has been cleaned up",
+        )
+        if purge_key:
+            result.format_secondary_text(
+                "Your settings and API key were deleted.\n\n"
+                "Remove the application itself with:\n\n"
+                "    sudo apt remove opencode-go-widget"
+            )
+        else:
+            result.format_secondary_text(
+                "Your settings and API key were kept in "
+                "~/.config/opencode-go-widget.\n\n"
+                "Remove the application itself with:\n\n"
+                "    sudo apt remove opencode-go-widget"
+            )
+        result.show_all()
+        result.run()
+        result.destroy()
+        self.quit()
 
     # -- lifecycle -----------------------------------------------------------
     def quit(self):

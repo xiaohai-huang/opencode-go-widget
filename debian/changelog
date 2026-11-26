@@ -1,3 +1,12 @@
+opencode-go-widget (1.0.5) unstable; urgency=medium
+
+  * Add --uninstall and --uninstall --purge, plus a Settings button, to
+    disable the extension, remove the autostart entry and clear the cache
+    before the package is removed.
+  * Add TryExec to the desktop and autostart entries.
+
+ -- xiaohai-huang <jeromehuang18@gmail.com>  Thu, 26 Nov 2026 11:16:20 +0800
+
 opencode-go-widget (1.0.4) unstable; urgency=medium
 
   * Enable the bundled panel extension automatically at app startup, after
