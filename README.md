@@ -126,8 +126,11 @@ Releases are built and published by
    ```sh
    git commit -am "Release 1.0.7"
    git tag v1.0.7
-   git push origin main --tags
+   git push origin main v1.0.7
    ```
+
+   Push the tag explicitly rather than with `--tags`, so only the version
+   you mean to publish triggers a release.
 
 3. The tag starts the workflow. It builds and smoke-tests the `.deb`, then
    publishes a GitHub release with the package, `SHA256SUMS`, the `.changes`
