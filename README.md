@@ -9,7 +9,8 @@ card.
 
 ![Desktop widget](docs/card.png)
 
-**Panel gauge** — the ring and weekly `N% used` label in the top bar:
+**Panel gauge** — the circular ring filled with your highest limit, plus the
+weekly `N% used` label in the top bar:
 
 ![Panel gauge](docs/panel-gauge.png)
 
