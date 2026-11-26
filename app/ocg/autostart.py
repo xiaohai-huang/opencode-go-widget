@@ -39,7 +39,7 @@ Type=Application
 Name=OpenCode Go Widget
 Comment=Panel ring gauge and desktop card for OpenCode Go usage
 Exec="{launcher_path()}"
-TryExec="{launcher_path()}"
+TryExec={launcher_path()}
 Icon=opencode-go-widget
 Terminal=false
 Categories=Utility;
@@ -48,6 +48,24 @@ StartupWMClass=opencode-go-widget
 X-GNOME-Autostart-enabled=true
 X-GNOME-Autostart-Delay=5
 """
+
+
+def ensure_current():
+    """Rewrite an existing entry so upgrades fix stale contents.
+
+    Older builds quoted TryExec, which GNOME's desktop parser rejects, so the
+    entry existed but the application never started at login.
+    """
+    path = autostart_path()
+    if not os.path.isfile(path):
+        return
+    try:
+        with open(path, encoding="utf-8") as fh:
+            if fh.read() == _entry():
+                return
+    except OSError:
+        pass
+    set_enabled(True)
 
 
 def set_enabled(enabled):

@@ -520,11 +520,16 @@ class CardWindow(Gtk.Window):
         self.badge.hide()
         self.error_box.hide()
         self.present()
+        # If the card started hidden, the placement queued in __init__ ran
+        # while the window was withdrawn, where the WM ignores it. Re-apply
+        # the saved position now that the window is mapped.
+        self._place()
         self._clear_urgency()
 
     # -- minimize -----------------------------------------------------------
     def set_collapsed(self, collapsed, animate=True, remember=True):
         """Minimize to the title bar; click the bar or the button to expand."""
+        was_collapsed = self.collapsed
         collapsed = bool(collapsed)
         self.collapsed = collapsed
         duration = self.revealer.get_transition_duration()
@@ -547,6 +552,11 @@ class CardWindow(Gtk.Window):
         if remember:
             self.config.set("collapsed", collapsed)
             self.config.save()
+
+        if was_collapsed and not collapsed:
+            # Maximizing is a request for fresh numbers: don't make the user
+            # wait for the next poll.
+            self.on_refresh()
 
     def _set_min_icon(self, collapsed):
         self.min_button.set_child(GlyphIcon("chevron-down" if collapsed else "minus"))

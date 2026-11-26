@@ -2,6 +2,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -109,6 +110,7 @@ class UsageButton extends PanelMenu.Button {
         this._spinId = 0;
         this._updatingToggle = false;
         this._hadService = false;
+        this._quitRequested = false;
         this._nameOwnerId = 0;
 
         // PanelMenu.Button only lays out a single child, so the ring and the
@@ -149,6 +151,12 @@ class UsageButton extends PanelMenu.Button {
             if (!open)
                 return;
             this._refreshFromService();
+            // Opening the panel item is a request for current numbers: ask the
+            // app to poll now instead of waiting for its next tick.
+            if (this._proxy.g_name_owner) {
+                this._setBusy(true);
+                this._proxy.RefreshRemote();
+            }
             if (GLib.getenv('OCG_DEVKIT'))
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
                     this._logLayout();
@@ -202,15 +210,32 @@ class UsageButton extends PanelMenu.Button {
                 this._onPayload(result[0]);
                 return;
             }
-            const fromFile = this._readStatusFile();
-            if (fromFile)
-                this._onPayload(fromFile);
-            else
-                this._onPayload(JSON.stringify({
-                    meters: [],
-                    error: 'Widget service is not running',
-                }));
+            this._onPayload(this._offlinePayload());
         });
+    }
+
+    /* The app is not on the bus. Its status file still has usable numbers, but
+     * they are stale and nothing in the menu can act on them, so say so
+     * instead of passing them off as live. */
+    _offlinePayload() {
+        let payload = null;
+        const fromFile = this._readStatusFile();
+        if (fromFile) {
+            try {
+                payload = JSON.parse(fromFile);
+            } catch (e) {
+                payload = null;
+            }
+        }
+        if (!payload || typeof payload !== 'object')
+            payload = {meters: []};
+
+        const hasData = Array.isArray(payload.meters) && payload.meters.length > 0;
+        payload.error = hasData
+            ? 'OpenCode Go Widget is not running — showing last known values'
+            : 'OpenCode Go Widget is not running';
+        payload.fetching = false;
+        return JSON.stringify(payload);
     }
 
     _syncServiceState() {
@@ -219,9 +244,16 @@ class UsageButton extends PanelMenu.Button {
             this.show();
             this._refreshFromService();
         } else if (this._hadService) {
-            // The app was quit: drop the cached panel item with it.
             this._hadService = false;
-            this.hide();
+            if (this._quitRequested) {
+                // Quit was explicit: drop the cached panel item with it.
+                this._quitRequested = false;
+                this.hide();
+            } else {
+                // The app went away on its own; keep the item so the offline
+                // state and the restart action stay reachable.
+                this._refreshFromService();
+            }
         }
     }
 
@@ -317,15 +349,23 @@ class UsageButton extends PanelMenu.Button {
         });
         this.menu.addMenuItem(this._toggle);
 
-        this.menu.addMenuItem(this._action('Settings', 'preferences-system-symbolic',
-            () => this._proxy.OpenSettingsRemote()));
+        this._startItem = this._action('Start OpenCode Go Widget',
+            'media-playback-start-symbolic', () => this._launchApp());
+        this._startItem.visible = false;
+        this.menu.addMenuItem(this._startItem);
+
+        this._settingsItem = this._action('Settings', 'preferences-system-symbolic',
+            () => this._proxy.OpenSettingsRemote());
+        this.menu.addMenuItem(this._settingsItem);
 
         this.menu.addMenuItem(this._action('Quit', 'system-shutdown-symbolic',
             () => {
-                if (this._proxy.g_name_owner)
+                if (this._proxy.g_name_owner) {
+                    this._quitRequested = true;
                     this._proxy.QuitRemote();
-                else
+                } else {
                     this.hide();
+                }
             }));
     }
 
@@ -346,15 +386,32 @@ class UsageButton extends PanelMenu.Button {
         return item;
     }
 
+    _launchApp() {
+        const app = Shell.AppSystem.get_default().lookup_app('opencode-go-widget.desktop');
+        if (!app) {
+            log('opencode-go: cannot find opencode-go-widget.desktop');
+            return;
+        }
+        app.activate();
+    }
+
     _applyState(payload) {
         const meters = payload?.meters ?? [];
+        const serviceUp = Boolean(this._proxy.g_name_owner);
 
         this._errorLabel.text = payload?.error ?? '';
         this._errorItem.visible = Boolean(payload?.error);
 
         const weekly = meters.find(meter => meter.key === 'weekly');
-        this._weeklyLabel.text = weekly ? `${Math.round(weekly.percent)}% used` : '';
-        this._weeklyLabel.visible = Boolean(weekly);
+        if (serviceUp) {
+            this._weeklyLabel.text = weekly ? `${Math.round(weekly.percent)}% used` : '';
+            this._weeklyLabel.visible = Boolean(weekly);
+        } else {
+            // Stale numbers must not look live in the panel either.
+            this._weeklyLabel.text = 'not running';
+            this._weeklyLabel.visible = true;
+        }
+        this._icon.opacity = serviceUp ? 255 : 140;
 
         for (let i = 0; i < this._rows.length && i < meters.length; i++)
             this._rows[i].update(meters[i]);
@@ -362,6 +419,16 @@ class UsageButton extends PanelMenu.Button {
         this._updatingToggle = true;
         this._toggle.setToggleState(Boolean(payload?.card_visible));
         this._updatingToggle = false;
+
+        // Nothing below can work without the service: show the start action
+        // and mute the controls instead of letting clicks vanish silently.
+        this._toggle.setSensitive(serviceUp);
+        this._toggle.opacity = serviceUp ? 255 : 140;
+        this._settingsItem.setSensitive(serviceUp);
+        this._settingsItem.opacity = serviceUp ? 255 : 140;
+        this._startItem.visible = !serviceUp;
+        this._refreshButton.reactive = serviceUp;
+        this._refreshButton.opacity = serviceUp ? 255 : 140;
 
         this._setBusy(Boolean(payload?.fetching));
 

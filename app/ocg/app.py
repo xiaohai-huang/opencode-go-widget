@@ -41,6 +41,9 @@ class WidgetApp:
     def __init__(self, config=None, demo=None):
         install_css()
         self.config = config or Config.load()
+        # Older builds wrote an autostart entry GNOME could not parse; fix it
+        # in place so the app actually starts at login.
+        autostart.ensure_current()
         self.snapshot = demo
         self.error = None
         self.fetching = False
