@@ -12,7 +12,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("AyatanaAppIndicator3", "0.1")
 from gi.repository import AyatanaAppIndicator3, Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import autostart, icon, service, usage  # noqa: E402
+from . import __version__, autostart, icon, service, usage  # noqa: E402
 from .card import CardWindow, install_css  # noqa: E402
 from .config import Config  # noqa: E402
 
@@ -426,6 +426,10 @@ class WidgetApp:
         scroller.add(self.raw_view)
         expander.add(scroller)
         area.pack_start(expander, False, False, 0)
+
+        version_label = Gtk.Label(label=f"Version {__version__}", xalign=1.0)
+        version_label.get_style_context().add_class("dim-label")
+        area.pack_start(version_label, False, False, 0)
 
         test_button.connect("clicked", self._on_test_clicked)
         self._settings_dialog = dialog

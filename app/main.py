@@ -10,6 +10,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+from ocg import __version__  # noqa: E402
+
 
 def prefer_x11():
     """Wayland forbids client-side window placement, so the card lives on Xwayland."""
@@ -60,7 +62,8 @@ def run_once(args):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="OpenCode Go usage widget")
+    parser = argparse.ArgumentParser(prog="opencode-go-widget", description="OpenCode Go Widget")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--once", action="store_true", help="print usage and exit (no GUI)")
     parser.add_argument("--demo", action="store_true", help="run with sample numbers")
     parser.add_argument("--no-card", action="store_true", help="start with the desktop card hidden")

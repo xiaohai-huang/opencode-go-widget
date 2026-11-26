@@ -15,11 +15,13 @@ import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from . import __version__
+
 # Overridable so the widget can be pointed at a local stub while testing.
 API_URL = os.environ.get(
     "OPENCODE_GO_USAGE_URL", "https://opencode.ai/inference/go/v1/usage"
 )
-USER_AGENT = "opencode-go-widget/1.0 (GNOME desktop widget)"
+USER_AGENT = f"opencode-go-widget/{__version__} (GNOME desktop widget)"
 
 CANONICAL = ("rolling", "weekly", "monthly")
 DEFAULT_LABELS = {"rolling": "5-hour", "weekly": "Weekly", "monthly": "Monthly"}
