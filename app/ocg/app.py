@@ -365,6 +365,7 @@ class WidgetApp:
         # window can inherit that stacking and open behind other windows.
         dialog = Gtk.Dialog(title="OpenCode Go settings")
         dialog.set_default_size(420, -1)
+        dialog.set_position(Gtk.WindowPosition.CENTER)
         dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
         save_button = dialog.add_button("Save", Gtk.ResponseType.OK)
         save_button.get_style_context().add_class("suggested-action")
@@ -485,6 +486,11 @@ class WidgetApp:
 
     # -- lifecycle -----------------------------------------------------------
     def quit(self):
+        # Gtk.Dialog.run() spins a nested main loop; close it first or Quit is
+        # swallowed while Settings is open.
+        dialog = getattr(self, "_settings_dialog", None)
+        if dialog is not None:
+            dialog.response(Gtk.ResponseType.CANCEL)
         try:
             self.indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.PASSIVE)
         except Exception:

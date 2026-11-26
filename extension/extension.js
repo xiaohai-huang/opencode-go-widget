@@ -108,6 +108,8 @@ class UsageButton extends PanelMenu.Button {
         this._busyTimeout = 0;
         this._spinId = 0;
         this._updatingToggle = false;
+        this._hadService = false;
+        this._nameOwnerId = 0;
 
         // PanelMenu.Button only lays out a single child, so the ring and the
         // weekly text share one box.
@@ -130,13 +132,18 @@ class UsageButton extends PanelMenu.Button {
 
         this._proxy = new Proxy(Gio.DBus.session, BUS_NAME, OBJECT_PATH,
             (proxy, error) => {
-                if (error)
+                if (error) {
                     log(`opencode-go: proxy error: ${error.message}`);
-                else
-                    this._refreshFromService();
+                    return;
+                }
+                this._hadService = !!proxy.g_name_owner;
+                this._refreshFromService();
             });
         this._signalId = this._proxy.connectSignal('UsageChanged',
             (_proxy, _sender, [json]) => this._onPayload(json));
+        // A Quit (or crash) leaves the last payload on screen otherwise.
+        this._nameOwnerId = this._proxy.connect('notify::g-name-owner',
+            () => this._syncServiceState());
 
         this.menu.connect('open-state-changed', (_menu, open) => {
             if (!open)
@@ -204,6 +211,18 @@ class UsageButton extends PanelMenu.Button {
                     error: 'Widget service is not running',
                 }));
         });
+    }
+
+    _syncServiceState() {
+        if (this._proxy.g_name_owner) {
+            this._hadService = true;
+            this.show();
+            this._refreshFromService();
+        } else if (this._hadService) {
+            // The app was quit: drop the cached panel item with it.
+            this._hadService = false;
+            this.hide();
+        }
     }
 
     _readStatusFile() {
@@ -302,7 +321,12 @@ class UsageButton extends PanelMenu.Button {
             () => this._proxy.OpenSettingsRemote()));
 
         this.menu.addMenuItem(this._action('Quit', 'system-shutdown-symbolic',
-            () => this._proxy.QuitRemote()));
+            () => {
+                if (this._proxy.g_name_owner)
+                    this._proxy.QuitRemote();
+                else
+                    this.hide();
+            }));
     }
 
     /* PopupMenuItem has no icon slot; insert one after the (hidden) ornament,
@@ -435,6 +459,10 @@ class UsageButton extends PanelMenu.Button {
         if (this._signalId) {
             this._proxy.disconnectSignal(this._signalId);
             this._signalId = null;
+        }
+        if (this._nameOwnerId) {
+            this._proxy.disconnect(this._nameOwnerId);
+            this._nameOwnerId = 0;
         }
         super.destroy();
     }
