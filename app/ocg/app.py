@@ -1,0 +1,481 @@
+"""Application wiring: polling, panel indicator, settings dialog."""
+
+import json
+import os
+import threading
+import time
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("AyatanaAppIndicator3", "0.1")
+from gi.repository import AyatanaAppIndicator3, Gdk, Gio, GLib, Gtk  # noqa: E402
+
+from . import autostart, icon, service, usage  # noqa: E402
+from .card import CardWindow, install_css  # noqa: E402
+from .config import Config  # noqa: E402
+
+try:
+    gi.require_version("Notify", "0.7")
+    from gi.repository import Notify
+    HAVE_NOTIFY = True
+except Exception:  # libnotify typelib missing
+    HAVE_NOTIFY = False
+
+
+def friendly_error(err):
+    if isinstance(err, usage.AuthError):
+        if "no api key" in str(err).lower():
+            return "No API key configured"
+        return "API key rejected — check Settings"
+    if isinstance(err, usage.NetworkError):
+        return "Can't reach opencode.ai — retrying"
+    if isinstance(err, usage.ServerError):
+        if err.status == 429:
+            return "Rate limited by the API — retrying"
+        if err.status:
+            return f"API error (HTTP {err.status})"
+        return str(err)
+    if isinstance(err, usage.ParseError):
+        return "Unexpected API response — see Settings → Test"
+    return str(err) or "Unknown error"
+
+
+class WidgetApp:
+    def __init__(self, config=None, demo=None):
+        install_css()
+        self.config = config or Config.load()
+        self.snapshot = demo
+        self.error = None
+        self.fetching = False
+        self.next_poll = 0.0
+        self.notified = set()
+
+        self.card = CardWindow(
+            self.config,
+            on_refresh=self.refresh,
+            on_settings=self.open_settings,
+            on_hide=self.hide_card,
+            on_quit=self.quit,
+        )
+        self.card.connect("delete-event", self._on_delete)
+        self.card.set_interval(self.config.get("poll_minutes"))
+
+        if HAVE_NOTIFY:
+            try:
+                Notify.init("OpenCode Go")
+            except Exception:
+                pass
+
+        self.menu = None
+        self.indicator = None
+        # The shell extension draws the panel item when present; don't duplicate.
+        if self.config.get("tray_indicator", True) and not self._extension_present():
+            self.indicator = AyatanaAppIndicator3.Indicator.new(
+                "opencode-go-widget",
+                "dialog-information-symbolic",
+                AyatanaAppIndicator3.IndicatorCategory.APPLICATION_STATUS,
+            )
+            self.indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
+            self.indicator.set_title("OpenCode Go")
+
+        # D-Bus surface for the GNOME Shell extension (data + actions).
+        self.service = service.WidgetService(
+            on_refresh=self.refresh,
+            on_settings=self.open_settings,
+            on_card=self.show_card,
+            on_card_visible=self.set_card_visible,
+        )
+        if not self.service.start():
+            print("opencode-go-widget: D-Bus service unavailable")
+
+        if not self.config.get("show_card"):
+            self.card.hide()
+
+        if demo is not None:
+            self.card.remember(demo)
+            self.card.show_snapshot(demo)
+            self._update_indicator()
+            self._publish()
+        else:
+            self._update_indicator()
+            self._publish()
+            GLib.idle_add(self.refresh)
+
+        GLib.timeout_add_seconds(20, self._tick)
+
+    # -- polling -------------------------------------------------------------
+    def refresh(self):
+        if self.fetching:
+            return False
+        token = self.config.token
+        if not token:
+            self._on_result(None, usage.AuthError("no API key configured"))
+            return False
+        self.fetching = True
+        self.card.set_busy(True)
+        self._update_indicator()
+        self._publish()
+        threading.Thread(target=self._work, args=(token,), daemon=True).start()
+        return False
+
+    def _work(self, token):
+        try:
+            snapshot = usage.fetch(token)
+            GLib.idle_add(self._on_result, snapshot, None)
+        except usage.UsageError as err:
+            GLib.idle_add(self._on_result, None, err)
+        except Exception as err:  # never let the poller die silently
+            GLib.idle_add(self._on_result, None, usage.UsageError(f"unexpected error: {err}"))
+
+    def _on_result(self, snapshot, error):
+        self.fetching = False
+        self.card.set_busy(False)
+        interval = max(1, int(self.config.get("poll_minutes") or 5)) * 60
+        if snapshot is not None:
+            self.snapshot = snapshot
+            self.error = None
+            self.card.remember(snapshot)
+            self.card.show_snapshot(snapshot)
+            self.next_poll = time.time() + interval
+            self._maybe_notify(snapshot)
+        else:
+            self.error = error
+            # Retry quickly on transient trouble, slowly on bad credentials.
+            retry = 60 if isinstance(error, (usage.NetworkError,)) or \
+                (isinstance(error, usage.ServerError) and error.status == 429) else interval
+            self.next_poll = time.time() + retry
+            if self.snapshot is not None:
+                self.card.show_snapshot(self.snapshot, error=friendly_error(error))
+            else:
+                self.card.show_error(friendly_error(error))
+        self._update_indicator()
+        self._publish()
+        return False
+
+    def _tick(self):
+        # If the shell extension shows up later, retire our tray icon.
+        if self.indicator is not None and self._extension_present():
+            try:
+                self.indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.PASSIVE)
+            except Exception:
+                pass
+            self.indicator = None
+        if not self.fetching and time.time() >= self.next_poll:
+            self.refresh()
+        elif self.snapshot is not None:
+            self.card.refresh_resets()
+        return True
+
+    # -- notifications -------------------------------------------------------
+    def _maybe_notify(self, snapshot):
+        threshold = self.config.get("notify_at")
+        if not HAVE_NOTIFY or not threshold:
+            return
+        for meter in snapshot.meters:
+            if meter.percent < threshold:
+                continue
+            stamp = int((meter.reset_at or 0) // 60)
+            token = (meter.key, stamp)
+            if token in self.notified:
+                continue
+            self.notified.add(token)
+            try:
+                note = Notify.Notification.new(
+                    f"OpenCode Go: {meter.label} at {meter.percent:.0f}%",
+                    usage.reset_line(meter) or "Approaching your usage limit",
+                    "dialog-warning",
+                )
+                note.show()
+            except Exception:
+                pass
+
+    # -- indicator -----------------------------------------------------------
+    @staticmethod
+    def _extension_present():
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            reply = bus.call_sync(
+                "org.freedesktop.DBus", "/org/freedesktop/DBus",
+                "org.freedesktop.DBus", "NameHasOwner",
+                GLib.Variant("(s)", ("org.opencode_go.ShellUI",)),
+                None, Gio.DBusCallFlags.NONE, 500, None)
+            return bool(reply.unpack()[0])
+        except Exception:
+            return False
+
+    def show_card(self):
+        self.config.set("show_card", True)
+        self.config.save()
+        self.card.show_card()
+        self._publish()
+
+    def set_card_visible(self, visible):
+        if visible:
+            self.show_card()
+        else:
+            self.hide_card()
+
+    def _publish(self):
+        """Push the current state to the D-Bus service used by the extension."""
+        connected = self.snapshot is not None
+        percent = self.snapshot.worst if connected else 0.0
+        tinted = bool(self.config.get("tint_icon"))
+        panel_icon = icon.build_icon(percent, tinted, connected)
+        meter_icons = {}
+        if self.snapshot is not None:
+            for meter in self.snapshot.meters:
+                meter_icons[meter.key] = icon.build_icon(
+                    meter.percent, tinted, True, tag=meter.key)
+        payload = service.WidgetService.build_payload(
+            self.snapshot, self.error, panel_icon, meter_icons, friendly_error,
+            card_visible=self.card.get_visible(), fetching=self.fetching)
+        self.service.set_payload(payload)
+        # Mirror to a file so the shell extension can also work without D-Bus
+        # (and so a nested/dev shell can render real data).
+        try:
+            path = os.path.join(icon.CACHE_DIR, "status.json")
+            os.makedirs(icon.CACHE_DIR, mode=0o700, exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh)
+            os.replace(tmp, path)
+        except OSError as err:
+            print(f"opencode-go-widget: could not write status file: {err}")
+
+    def _update_indicator(self):
+        if self.indicator is None:
+            return
+        connected = self.snapshot is not None
+        percent = self.snapshot.worst if connected else 0.0
+        path = icon.build_icon(percent, bool(self.config.get("tint_icon")), connected)
+        self.indicator.set_icon_full(path, "OpenCode Go usage")
+        if self.fetching and not connected:
+            title = "OpenCode Go · checking…"
+        elif connected:
+            title = f"OpenCode Go · {percent:.0f}% used"
+        elif self.error is not None:
+            title = f"OpenCode Go · {friendly_error(self.error)}"
+        else:
+            title = "OpenCode Go"
+        self.indicator.set_title(title)
+        self._rebuild_menu()
+
+    def _menu_rows(self, now):
+        """Plain text rows: the appindicator cannot host real columns, so this
+        is only the fallback used when the GNOME Shell extension is absent."""
+        return [
+            f"{m.label}  {int(round(m.percent))}%  {usage.countdown_text(m, now)}"
+            for m in self.snapshot.meters
+        ]
+
+    def _rebuild_menu(self):
+        if self.indicator is None:
+            # The Shell extension owns the panel item; no tray menu to build.
+            return
+        menu = Gtk.Menu()
+        header = "OpenCode Go"
+        if self.snapshot is not None and self.snapshot.plan:
+            header += f" · {self.snapshot.plan}"
+        elif self.config.get("plan_label"):
+            header += f" · {self.config.get('plan_label')}"
+
+        header_item = Gtk.MenuItem(label=header)
+        header_item.set_sensitive(False)
+        menu.append(header_item)
+
+        if self.snapshot is not None:
+            now = time.time()
+            tinted = bool(self.config.get("tint_icon"))
+            for line, meter in zip(self._menu_rows(now), self.snapshot.meters):
+                # GtkImageMenuItem (deprecated, but this is the shape the
+                # appindicator DBusMenu exporter knows how to carry icons for).
+                item = Gtk.ImageMenuItem(label=line)
+                path = icon.build_icon(meter.percent, tinted, True, tag=meter.key)
+                item.set_image(Gtk.Image.new_from_file(path))
+                item.set_always_show_image(True)
+                item.connect("activate", lambda *_: self._open_console())
+                menu.append(item)
+        else:
+            item = Gtk.MenuItem(label=self.error and friendly_error(self.error) or "Loading…")
+            item.set_sensitive(False)
+            menu.append(item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
+        show_item = Gtk.CheckMenuItem(label="Show desktop widget")
+        show_item.set_active(self.card.get_visible())
+        show_item.connect("toggled", self._on_toggle_card)
+        menu.append(show_item)
+
+        for label, callback in (
+            ("Refresh now", lambda *_: self.refresh()),
+            ("Settings…", lambda *_: self.open_settings()),
+        ):
+            item = Gtk.MenuItem(label=label)
+            item.connect("activate", callback)
+            menu.append(item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+        quit_item = Gtk.MenuItem(label="Quit")
+        quit_item.connect("activate", lambda *_: self.quit())
+        menu.append(quit_item)
+
+        menu.show_all()
+        self.menu = menu  # keep a reference: the indicator does not own it
+        self.indicator.set_menu(menu)
+
+    def _open_console(self):
+        uri = self.config.get("console_url") or "https://opencode.ai/auth"
+        Gtk.show_uri_on_window(self.card if self.card.get_visible() else None, uri, Gdk.CURRENT_TIME)
+
+    def _on_toggle_card(self, item):
+        self.set_card_visible(item.get_active())
+
+    def hide_card(self):
+        self.card.hide()
+        self.config.set("show_card", False)
+        self.config.save()
+        self._publish()
+        self._rebuild_menu()
+
+    def _on_delete(self, *_args):
+        self.hide_card()
+        return True
+
+    # -- settings ------------------------------------------------------------
+    def open_settings(self):
+        if getattr(self, "_settings_dialog", None) is not None:
+            self._settings_dialog.present()
+            return
+        # Deliberately not transient_for the card: a child of a keep-below
+        # window can inherit that stacking and open behind other windows.
+        dialog = Gtk.Dialog(title="OpenCode Go settings")
+        dialog.set_default_size(420, -1)
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        save_button = dialog.add_button("Save", Gtk.ResponseType.OK)
+        save_button.get_style_context().add_class("suggested-action")
+        area = dialog.get_content_area()
+        area.set_spacing(10)
+        area.set_border_width(16)
+
+        grid = Gtk.Grid(column_spacing=12, row_spacing=10)
+        area.pack_start(grid, False, False, 0)
+
+        key_label = Gtk.Label(label="API key", xalign=0.0)
+        self.key_entry = Gtk.Entry()
+        self.key_entry.set_visibility(False)
+        self.key_entry.set_text(self.config.token)
+        self.key_entry.set_placeholder_text("paste your OpenCode Go key")
+        self.key_entry.set_hexpand(True)
+        self.key_entry.get_style_context().add_class("ocg-key")
+        reveal = Gtk.CheckButton(label="Show")
+        reveal.connect("toggled", lambda b: self.key_entry.set_visibility(b.get_active()))
+        grid.attach(key_label, 0, 0, 1, 1)
+        grid.attach(self.key_entry, 1, 0, 1, 1)
+        grid.attach(reveal, 2, 0, 1, 1)
+
+        link = Gtk.LinkButton.new_with_label("https://opencode.ai/auth", "Get a key in the OpenCode Console")
+        grid.attach(link, 1, 1, 2, 1)
+
+        poll_label = Gtk.Label(label="Check every", xalign=0.0)
+        self.poll_spin = Gtk.SpinButton.new_with_range(1, 60, 1)
+        self.poll_spin.set_value(int(self.config.get("poll_minutes") or 5))
+        poll_unit = Gtk.Label(label="minutes", xalign=0.0)
+        grid.attach(poll_label, 0, 2, 1, 1)
+        grid.attach(self.poll_spin, 1, 2, 1, 1)
+        grid.attach(poll_unit, 2, 2, 1, 1)
+
+        self.tint_check = Gtk.CheckButton(label="Tint the panel icon by usage (blue → amber → red)")
+        self.tint_check.set_active(bool(self.config.get("tint_icon")))
+        self.notify_check = Gtk.CheckButton(label="Notify me at 90% of any limit")
+        self.notify_check.set_active(bool(self.config.get("notify_at")))
+        self.on_top_check = Gtk.CheckButton(label="Float the card above other windows")
+        self.on_top_check.set_active(bool(self.config.get("always_on_top")))
+        self.autostart_check = Gtk.CheckButton(label="Start automatically at login")
+        self.autostart_check.set_active(autostart.is_enabled())
+        area.pack_start(self.tint_check, False, False, 0)
+        area.pack_start(self.notify_check, False, False, 0)
+        area.pack_start(self.on_top_check, False, False, 0)
+        area.pack_start(self.autostart_check, False, False, 0)
+
+        test_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        test_button = Gtk.Button(label="Test connection")
+        self.test_label = Gtk.Label(xalign=0.0)
+        self.test_label.set_line_wrap(True)
+        test_row.pack_start(test_button, False, False, 0)
+        test_row.pack_start(self.test_label, True, True, 0)
+        area.pack_start(test_row, False, False, 0)
+
+        expander = Gtk.Expander(label="Raw API response")
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_min_content_height(140)
+        self.raw_view = Gtk.TextView()
+        self.raw_view.set_editable(False)
+        self.raw_view.set_monospace(True)
+        scroller.add(self.raw_view)
+        expander.add(scroller)
+        area.pack_start(expander, False, False, 0)
+
+        test_button.connect("clicked", self._on_test_clicked)
+        self._settings_dialog = dialog
+        dialog.show_all()
+        try:
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                self._save_settings()
+        finally:
+            # Must always run: a stale dialog would swallow its own buttons.
+            self._settings_dialog = None
+            dialog.destroy()
+
+    def _save_settings(self):
+        self.config.set_token(self.key_entry.get_text())
+        minutes = int(self.poll_spin.get_value())
+        self.config.set("poll_minutes", minutes)
+        self.card.set_interval(minutes)
+        self.config.set("tint_icon", self.tint_check.get_active())
+        self.config.set("notify_at", 90 if self.notify_check.get_active() else 0)
+        self.config.set("always_on_top", self.on_top_check.get_active())
+        self.config.save()
+        self.card.apply_stacking(self.on_top_check.get_active())
+        autostart.set_enabled(self.autostart_check.get_active())
+        self.notified.clear()
+        self.next_poll = 0
+        self.refresh()
+        self._rebuild_menu()
+
+    def _on_test_clicked(self, _button):
+        token = self.key_entry.get_text().strip()
+        self.test_label.set_text("Checking…")
+        self.test_label.get_style_context().remove_class("ocg-error")
+
+        def work():
+            try:
+                snapshot = usage.fetch(token)
+                text = usage.describe(snapshot)
+                raw = json.dumps(snapshot.raw, indent=2)[:4000]
+                GLib.idle_add(self._on_test_done, f"OK — {len(snapshot.meters)} meters", text, raw, False)
+            except usage.UsageError as err:
+                GLib.idle_add(self._on_test_done, friendly_error(err), str(err), "", True)
+            except Exception as err:
+                GLib.idle_add(self._on_test_done, f"failed: {err}", str(err), "", True)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_test_done(self, status, detail, raw, is_error):
+        self.test_label.set_text(status)
+        if is_error:
+            self.test_label.get_style_context().add_class("ocg-error")
+        buffer = self.raw_view.get_buffer()
+        buffer.set_text(raw or detail or "")
+        return False
+
+    # -- lifecycle -----------------------------------------------------------
+    def quit(self):
+        try:
+            self.indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.PASSIVE)
+        except Exception:
+            pass
+        Gtk.main_quit()

@@ -1,0 +1,42 @@
+/* OpenCode Go usage popup */
+
+.ocg-title {
+    font-weight: 700;
+}
+
+.ocg-muted {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.ocg-error {
+    color: #ff7b72;
+}
+
+.ocg-row-name {
+    font-weight: 500;
+}
+
+.ocg-row-value {
+    text-align: right;
+}
+
+.ocg-row-clock {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* Keep the header refresh control the size of the row icons, not the 40px
+ * quick-settings circle. */
+.popup-menu-item .ocg-refresh {
+    padding: 6px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.ocg-toggle-icon {
+    margin-right: 8px;
+}
+
+.ocg-panel-label {
+    margin-left: 6px;
+    color: rgba(255, 255, 255, 0.85);
+}

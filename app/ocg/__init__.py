@@ -1,0 +1,1 @@
+"""OpenCode Go desktop widget."""

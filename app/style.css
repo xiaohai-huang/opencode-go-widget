@@ -1,0 +1,159 @@
+/* OpenCode Go widget — the card is deliberately dark in both GNOME themes. */
+
+window.ocg-card {
+    background-color: transparent;
+}
+
+.ocg-surface {
+    background-color: rgba(30, 30, 33, 0.97);
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.ocg-title {
+    color: rgba(255, 255, 255, 0.96);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.ocg-badge {
+    background-color: rgba(53, 132, 228, 0.20);
+    color: #99c1f1;
+    border-radius: 9px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.ocg-name {
+    color: rgba(255, 255, 255, 0.90);
+    font-size: 12px;
+}
+
+.ocg-pct {
+    color: rgba(255, 255, 255, 0.97);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ocg-reset,
+.ocg-muted {
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 10px;
+}
+
+.ocg-reset.warn {
+    color: #f5c211;
+}
+
+.ocg-error {
+    color: #ff7b72;
+    font-size: 11px;
+}
+
+progressbar.ocg-bar {
+    min-height: 6px;
+}
+
+progressbar.ocg-bar trough {
+    min-height: 6px;
+    border-radius: 3px;
+    border: none;
+    box-shadow: none;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+progressbar.ocg-bar progress {
+    min-height: 6px;
+    border-radius: 3px;
+    border: none;
+    box-shadow: none;
+    background-color: #3584e4;
+}
+
+progressbar.ocg-bar.ocg-warn progress {
+    background-color: #e5a50a;
+}
+
+progressbar.ocg-bar.ocg-danger progress {
+    background-color: #e01b24;
+}
+
+button.ocg-flat {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 2px;
+    min-height: 18px;
+    min-width: 18px;
+    color: rgba(255, 255, 255, 0.60);
+}
+
+button.ocg-flat:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 6px;
+}
+
+button.ocg-text {
+    background-color: rgba(255, 255, 255, 0.08);
+    background-image: none;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: none;
+    color: rgba(255, 255, 255, 0.85);
+    border-radius: 7px;
+    padding: 4px 10px;
+    min-height: 16px;
+    font-size: 11px;
+}
+
+button.ocg-text:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+separator.ocg-sep {
+    background-color: rgba(255, 255, 255, 0.08);
+    min-height: 1px;
+}
+
+
+/* Windowed click targets for the header/footer controls */
+.ocg-click {
+    border-radius: 6px;
+    background-color: transparent;
+}
+
+.ocg-click:hover,
+.ocg-click.ocg-hover {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.ocg-click.ocg-pressed {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+
+/* Text controls built on ClickBox */
+.ocg-click.ocg-textbox {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 7px;
+}
+
+.ocg-click.ocg-textbox:hover,
+.ocg-click.ocg-textbox.ocg-hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+.ocg-click.ocg-textbox.ocg-pressed {
+    background-color: rgba(255, 255, 255, 0.20);
+}
+
+.ocg-textbtn-label {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 11px;
+}
+
+/* Settings dialog */
+entry.ocg-key {
+    font-family: monospace;
+}
